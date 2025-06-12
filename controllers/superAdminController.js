@@ -45,7 +45,7 @@ export const getAllAppointments = errorHandler(async (req, res) => {
     const  query  = {...req.query};
     const excludedFields = ['page', 'sort', 'limit', 'fields'];
     excludedFields.forEach((el) => delete query[el]);
-    
+
     const page = req.query.page * 1 || 1;
     const limit = req.query.limit * 1 || 5;
     const skip = (page - 1) * limit;
@@ -57,5 +57,49 @@ export const getAllAppointments = errorHandler(async (req, res) => {
             appointments,
         },
     });
+});
+
+export const getAppointmentsByDateRange = errorHandler(async (req, res) => {
+const { startDate, endDate } = req.query;
+
+// Validate date parameters
+if (!startDate || !endDate) {
+    return res.status(400).json(
+        new ApiResponse('fail', 'Both startDate and endDate are required')
+    );
+}
+
+try {
+    // Format dates to YYYY-MM-DD string format
+    const formattedStartDate = new Date(startDate).toISOString().split('T')[0];
+    const formattedEndDate = new Date(endDate).toISOString().split('T')[0];
+
+    const appointments = await Appointment.find({
+        startingdate: {
+            $gte: formattedStartDate,
+            $lte: formattedEndDate
+        }
+    })
+    .populate('user', 'name email')
+    .sort({ startingdate: 1 });
+
+    if (!appointments || appointments.length === 0) {
+        return res.status(404).json(
+            new ApiResponse('fail', 
+                `No appointments found between ${formattedStartDate} and ${formattedEndDate}`, 
+                []
+            )
+        );
+    }
+
+    return res.status(200).json(
+        new ApiResponse('success', 'Appointments found', appointments)
+    );
+
+} catch (error) {
+    return res.status(400).json(
+        new ApiResponse('fail', 'Invalid date format')
+    );
+}
 });
 export const getAllGroups = errorHandler(async (req, res) => {});
