@@ -1,0 +1,113 @@
+[
+    {
+      "email": "admin@example.com",
+      "password": "password123",
+      "name": "Admin User",
+      "phone": "1234567890",
+      "gender": "male",
+      "appointments": [],
+      "groups": [],
+      "role": "admin",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user2@example.com",
+      "password": "password123",
+      "name": "Jane Smith",
+      "phone": "0987654321",
+      "gender": "female",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user3@example.com",
+      "password": "password123",
+      "name": "Ali Hassan",
+      "phone": "1122334455",
+      "gender": "male",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user4@example.com",
+      "password": "password123",
+      "name": "Sara Ali",
+      "phone": "6677889900",
+      "gender": "female",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user5@example.com",
+      "password": "password123",
+      "name": "Michael Brown",
+      "phone": "2233445566",
+      "gender": "male",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user6@example.com",
+      "password": "password123",
+      "name": "Emily Davis",
+      "phone": "3344556677",
+      "gender": "female",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user7@example.com",
+      "password": "password123",
+      "name": "Omar Khaled",
+      "phone": "4455667788",
+      "gender": "male",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user8@example.com",
+      "password": "password123",
+      "name": "Layla Noor",
+      "phone": "5566778899",
+      "gender": "female",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user9@example.com",
+      "password": "password123",
+      "name": "William Johnson",
+      "phone": "6677889900",
+      "gender": "male",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    },
+    {
+      "email": "user10@example.com",
+      "password": "password123",
+      "name": "Sophia Wilson",
+      "phone": "7788990011",
+      "gender": "female",
+      "appointments": [],
+      "groups": [],
+      "role": "user",
+      "profilePic": "https://www.pngitem.com/pimgs/m/146-1468479_my-profile-icon-blank-profile-picture-circle-hd.png"
+    }
+  ]
+  
