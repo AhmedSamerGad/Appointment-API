@@ -1,6 +1,6 @@
-import errorHandler from "../middlewares/errorHandler";
-import User from "../models/userModel";
-import Appointment from "../models/appointmentModel";
+import errorHandler from "../middlewares/errorHandler.js";
+import User from "../models/userModel.js";
+import Appointment from "../models/appointmentModel.js";
 
 export const getAllUsers = errorHandler(async (req, res) => {
     const users = await User.find().sort({ role: { $eq: "admin" } ? -1 : 1 });
