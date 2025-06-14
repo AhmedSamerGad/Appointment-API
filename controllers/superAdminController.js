@@ -1,22 +1,31 @@
 import errorHandler from "../middlewares/errorHandler.js";
 import User from "../models/userModel.js";
+import { calculateComputedStatus } from "./appointmentController.js";
 import Appointment from "../models/appointmentModel.js";
 
 export const getAllUsers = errorHandler(async (req, res) => {
-    const users = await User.find().sort({ role: { $eq: "admin" } ? -1 : 1 });
+    const page = req.query.page * 1 || 1;
+    const limit = req.query.limit * 1 || 4;
+    const skip = (page - 1) * limit;
+    const count = await User.countDocuments();
+    const users = await User.find().sort({ role: { $eq: "admin" } ? 1 : -1 }).skip(skip).limit(limit);
     res.status(200).json({
         status: "success",
+        results: count,
+        page: page,
         data: {
             users,
         },
     });
 });
-export const getAppointmentByDate = errorHandler(async (req, res,next) => {
+export const getAppointmentByDate = errorHandler(async (req, res) => {
 const appointment = await Appointment.findOne({ startingdate: req.query.date || Date.now() });
 if (!appointment) {
     return res.status(404).json(new ApiResponse('fail','Appointment not found'));
         
 } 
+    appointment.status = calculateComputedStatus(appointment);
+    await appointment.save();
 res.json(new ApiResponse('success','Appointment found', appointment));
 });
 
@@ -51,8 +60,15 @@ export const getAllAppointments = errorHandler(async (req, res) => {
     const skip = (page - 1) * limit;
 
     const appointments = await Appointment.find(query).skip(skip).limit(limit);
+
+    for (const appointment of appointments) {
+        appointment.status = calculateComputedStatus(appointment);
+        await appointment.save();
+    }
     res.status(200).json({
         status: "success",
+        page: page,
+        limit: limit,
         data: {
             appointments,
         },

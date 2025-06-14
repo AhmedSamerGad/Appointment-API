@@ -124,3 +124,26 @@ export const getAppointmentsForCurrentUser = errorHandler(async (req, res) => {
         data: appointments
     });
 });
+
+export const calculateComputedStatus = (appointment) => {
+  const now = new Date();
+
+  const isOneDay = !appointment.endingdate || appointment.endingdate === appointment.startingdate;
+
+  const startTime = appointment.startingtime || '00:00';
+  const endTime = appointment.endingtime || '23:59';
+
+  const start = new Date(`${appointment.startingdate}T${startTime}`);
+  const end = isOneDay
+    ? new Date(`${appointment.startingdate}T${endTime}`)
+    : new Date(`${appointment.endingdate}T${endTime}`);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || appointment.status === 'pending' || appointment.status === 'rejected') return appointment.status;
+
+  if (now < start) return 'inactive';
+  if (now >= start && now <= end) return 'active';
+  if (now > end) return 'expired';
+
+  return appointment.status;
+}
+

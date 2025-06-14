@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
 },{timestamps: true});
 // check if the super admin is existing 
 userSchema.pre('save', async function(next){
-    if(this.role == 'super-admin'){
+    if(this.isNew && this.role == 'super-admin'){
         const existingUser = await mongoose.model('User').findOne({role: 'super-admin'});
         if(existingUser){
             return next(new Error('Super Admin already exists'));
