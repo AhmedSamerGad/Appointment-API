@@ -5,23 +5,12 @@ import ApiResponse from '../utils/apiResponse.js';
 
 export const createAppointment = errorHandler(async (req, res, next) => {
     try {
-        // Create initial appointment without ratings
-        const appointment = await Appointment.create({
-            user: req.user.id,
-            ...req.body,
-            status: 'pending',
-            rating: []
-        });
-
-        if (!appointment) {
-            return res.status(400).json(
-                new ApiResponse('fail', 'Appointment not created')
-            );
-        }
+        let attendance = [];
+        let group = null;
 
         // Handle group-based appointments
         if (req.body.group) {
-            const group = await Group.findById(req.body.group);
+            group = await Group.findById(req.body.group);
             if (!group) {
                 return res.status(404).json(
                     new ApiResponse('fail', 'Group not found')
@@ -29,53 +18,63 @@ export const createAppointment = errorHandler(async (req, res, next) => {
             }
 
             // Check permissions
-            if (req.user.role !== 'admin' && 
-                group.admin.toString() !== req.user.id && 
-                req.user.role !== 'super-admin') {
+            if (
+                req.user.role !== 'admin' &&
+                group.admin.toString() !== req.user.id &&
+                req.user.role !== 'super-admin'
+            ) {
                 return res.status(403).json(
                     new ApiResponse('fail', 'Only group admins or super admins can create group appointments')
                 );
             }
 
-            // Add group members to attendance
-            appointment.attendance = group.members.map(member => member._id);
-            appointment.group = req.body.group;
+            attendance = group.members.map(member => member._id);
+        }
+
+        // Always include creator in attendance if not already present
+        if (!attendance.includes(req.user.id)) {
+            attendance.push(req.user.id);
+        }
+
+        // Prepare initial ratings for all attendees
+        const initialRatings = (req.body.rating || []).length > 0
+            ? attendance.map(userId => ({
+                ratedUser: [userId],
+                ratedBy: req.user.id,
+                ratingTypes: req.body.rating.map(type => ({
+                    title: type.title,
+                    points: 0,
+                    hasRated: false,
+                    comment: ''
+                })),
+            }))
+            : [];
+
+        // Create appointment with all fields set
+        const appointment = await Appointment.create({
+            user: req.user.id,
+            ...req.body,
+            attendance,
+            group: group ? group._id : undefined,
+            status: 'pending',
+            rating: initialRatings
+        });
+
+        // Add appointment to group if needed
+        if (group) {
             group.Appointments.push(appointment._id);
             await group.save();
         }
-
-        // Initialize ratings for all attendees
-        const attendees = appointment.attendance || [];
-        if (!attendees.includes(req.user.id)) {
-            attendees.push(req.user.id); // Include creator if not in attendance
-        }
-
-        const initialRatings = attendees.map(userId => ({
-            ratedUser: [userId],
-            ratedBy: req.user.id,
-            ratingTypes: req.body.rating.map(type => ({
-                title: type.title,
-                points: 0,
-                hasRated: false,
-                comment: ''
-            })),
-        }));
-
-        // Update appointment with ratings
-        appointment.rating = initialRatings;
-        await appointment.save();
 
         // Return populated appointment
         const populatedAppointment = await Appointment.findById(appointment._id)
             .populate('user', 'name email')
             .populate('attendance', 'name email')
-            .populate('rating', 'name email')
-           
+            .populate('rating', 'name email');
 
         return res.status(201).json(
             new ApiResponse('success', 'Appointment created successfully', populatedAppointment)
         );
-
     } catch (error) {
         console.error('Create appointment error:', error);
         return res.status(500).json(
@@ -125,3 +124,26 @@ export const getAppointmentsForCurrentUser = errorHandler(async (req, res) => {
         data: appointments
     });
 });
+
+export const calculateComputedStatus = (appointment) => {
+  const now = new Date();
+
+  const isOneDay = !appointment.endingdate || appointment.endingdate === appointment.startingdate;
+
+  const startTime = appointment.startingtime || '00:00';
+  const endTime = appointment.endingtime || '23:59';
+
+  const start = new Date(`${appointment.startingdate}T${startTime}`);
+  const end = isOneDay
+    ? new Date(`${appointment.startingdate}T${endTime}`)
+    : new Date(`${appointment.endingdate}T${endTime}`);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || appointment.status === 'pending' || appointment.status === 'rejected') return appointment.status;
+
+  if (now < start) return 'inactive';
+  if (now >= start && now <= end) return 'active';
+  if (now > end) return 'expired';
+
+  return appointment.status;
+}
+

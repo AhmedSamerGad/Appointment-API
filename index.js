@@ -4,6 +4,7 @@ import globalError from './middlewares/globleError.js';
 import appointmentRoute from './routes/appointmentRoute.js';
 import userRoute from './routes/userRoute.js';
 import groupRoute from './routes/groupRoute.js';
+import adminRoute from './routes/adminRoure.js';
 import {connectDB} from './config/database_conig.js';
 import cors from 'cors';
 
@@ -18,6 +19,7 @@ app.use(cors());
 app.use('/api/appointment',appointmentRoute);
 app.use('/api/user',userRoute);
 app.use('/api/group',groupRoute);
+app.use('/api/admin',adminRoute);
 
 
 app.use(globalError);
