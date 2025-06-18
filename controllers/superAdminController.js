@@ -1,6 +1,7 @@
 import errorHandler from "../middlewares/errorHandler.js";
 import User from "../models/userModel.js";
 import { calculateComputedStatus } from "./appointmentController.js";
+import ApiResponse from "../utils/apiResponse.js";
 import Appointment from "../models/appointmentModel.js";
 
 export const getAllUsers = errorHandler(async (req, res) => {
@@ -119,3 +120,16 @@ try {
 }
 });
 export const getAllGroups = errorHandler(async (req, res) => {});
+
+export const AppointmentReviewDetails = errorHandler(async (req, res) => {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.find({appointmentId , status : 'completed'})
+    .populate('user', 'name profilePicture').populate('rating', 'points comment cumulativeRatingPoints');
+
+   if (!appointment || appointment.length ==0) {
+       return res.status(404).json({status:'fail', message:'Appointment not found or not completed'});
+   }
+
+   res.status(200).json({status : 'success', data : appointment});
+});

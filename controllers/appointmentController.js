@@ -7,6 +7,7 @@ export const createAppointment = errorHandler(async (req, res, next) => {
     try {
         let attendance = [];
         let group = null;
+        const ratingType = req.body.rating;
 
         // Handle group-based appointments
         if (req.body.group) {
@@ -29,6 +30,9 @@ export const createAppointment = errorHandler(async (req, res, next) => {
             }
 
             attendance = group.members.map(member => member._id);
+        }else{
+                 attendance = req.body.attendance || [];
+
         }
 
         // Always include creator in attendance if not already present
@@ -37,18 +41,21 @@ export const createAppointment = errorHandler(async (req, res, next) => {
         }
 
         // Prepare initial ratings for all attendees
-        const initialRatings = (req.body.rating || []).length > 0
-            ? attendance.map(userId => ({
-                ratedUser: [userId],
-                ratedBy: req.user.id,
-                ratingTypes: req.body.rating.map(type => ({
-                    title: type.title,
-                    points: 0,
-                    hasRated: false,
-                    comment: ''
-                })),
+        const initialRatings = {
+            ratedBy : req.user.id || req.body.ratedBy,
+            hasRated:false,
+            ratedAt:Date.now(),
+            users: attendance.map(userId => ({
+                ratedUser: userId,
+                cumulativeRatingPoints: 0,
+                comment: req.body.comment || '',
+                reviews: ratingType.map(review => ({
+                    title: review.title,
+                    points: review.points || 0
+                }))
             }))
-            : [];
+        };
+            
 
         // Create appointment with all fields set
         const appointment = await Appointment.create({
@@ -142,7 +149,7 @@ export const calculateComputedStatus = (appointment) => {
 
   if (now < start) return 'inactive';
   if (now >= start && now <= end) return 'active';
-  if (now > end) return 'expired';
+  if (now > end && appointment.status !== 'completed' && appointment.status !== 'rejected') return 'expired';
 
   return appointment.status;
 }

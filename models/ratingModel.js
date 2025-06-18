@@ -1,41 +1,52 @@
 import mongoose from "mongoose";
 
-const ratingSchema = new mongoose.Schema(
+const ratingUserSchema = new mongoose.Schema({
+  ratedUser: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  }],
+  comment: {
+      type: String,
+      maxlength: 500
+    },
+  cumulativeRatingPoints: {
+    type: Number,
+    default: 0
+  },
+  reviews: [
     {
       title: {
         type: String,
-      },
-      ratedUser: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User", // The user being rated
-      }],
-      ratedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User", // The user giving the rating
+        required: true
       },
       points: {
         type: Number,
         required: true,
         min: 0,
-        max: 5, // Rating between 1 and 5
-        default:0
-      },
-      comment: {
-        type: String,
-        maxlength: 500, // Optional comment
-      },
-      hasRated: {
-        type: Boolean,
-        default: false,
-    },
-    ratedAt : { type : Date },
-    cumulativeRatingPoints: {
-        type: Number,
+        max: 5,
         default: 0
+      }
     }
+  ]
+}, { _id: false });
+
+const ratingSchema = new mongoose.Schema(
+  {
+    ratedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     },
-    { timestamps: true }
-  );
-
-
-  export default ratingSchema;
+   
+    
+    hasRated: {
+      type: Boolean,
+      default: false
+    },
+    ratedAt: { type: Date },
+    users: [ratingUserSchema]
+  },
+  { timestamps: true }
+);
+export default ratingSchema;

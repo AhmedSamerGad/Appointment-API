@@ -32,7 +32,7 @@ const AppointmentSchema = new mongoose.Schema({
     //for the admin
     status: {
         type: String,
-        enum: ['pending', 'rejected','inactive','active','expired'],
+        enum: ['pending', 'rejected','inactive','active','expired', 'completed'],
         default: 'pending'
     },
     attendance: [{

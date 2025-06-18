@@ -1,5 +1,7 @@
 import Rating from '../models/ratingModel.js';
 import errorHandler from '../middlewares/errorHandler.js';
+import Appointment from '../models/appointmentModel.js';
+import { calculateComputedStatus } from './appointmentController.js';
 
 export const createRating = errorHandler(async (req, res) => {
     const rating = await Rating.create(req.body);
@@ -33,30 +35,21 @@ export const deleteRating = errorHandler(async (req, res) => {
     } } );
     export const startRating = errorHandler(async (req, res) => {
     // Use computedStatus instead of status field
-    const appointment = await Appointment.findById(req.params.id)
-        .populate('user', 'name email')
-        .populate('attendance', 'name email')
-        .populate('rating.ratedUser', 'name email')
-        .populate('rating.ratedBy', 'name email');
+    const appointment = await Appointment.findById(req.params.id);
+       
 
-    if (!appointment) {
+    if (!appointment || calculateComputedStatus(appointment) !== 'active') {
         return res.status(404).json(
-            new ApiResponse('fail', 'Appointment not found')
+            new ApiResponse('fail', 'Appointment not found or not active', null)
         );
     }
 
-    // Use computedStatus to check if appointment is active
-    if (appointment.computedStatus !== 'active') {
-        return res.status(400).json(
-            new ApiResponse('fail', 'Appointment is not active')
-        );
-    }
-
+    
     // Permission check
     if (
         req.user.role !== 'admin' &&
         req.user.role !== 'super-admin' &&
-        (!appointment.rating.length ||
+        (!appointment.rating.users.length ||
             !appointment.rating.some(r => r.ratedUser.toString() === req.user.id))
     ) {
         return res.status(403).json(
@@ -98,19 +91,22 @@ export const deleteRating = errorHandler(async (req, res) => {
 
     // Create new rating
     const newRating = {
-        ratedUser: req.body.id,
-        ratedBy: req.user.id,
-        rating: req.body.rating,
-        comment: req.body.comment || '',
-        attendance: appointment.acceptedBy,
-        points: req.body.points,
+        users: appointment.acceptedBy.map(user => ({
+            ratedUser: user,
+            cumulativeRatingPoints: user.reviews.reduce((acc, review) => acc + (review.points || 0), 0),
+            comment: user.comment || '',
+            reviews: req.body.reviews.map(review => ({
+                title: review.title,
+                points: review.points || 0
+            }))
+        })),
         hasRated: true,
-        cumulativeRatingPoints: req.body.points.map(point => point.points).reduce((acc, curr) => acc + curr, 0),
         ratedAt: new Date()
     };
 
     // Add new rating to array
     appointment.rating.push(newRating);
+    appointment.status = 'completed';
     await appointment.save();
 
     // Return populated appointment
