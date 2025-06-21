@@ -77,7 +77,6 @@ export const createAppointment = errorHandler(async (req, res, next) => {
         const populatedAppointment = await Appointment.findById(appointment._id)
             .populate('user', 'name email')
             .populate('attendance', 'name email')
-            .populate('rating', 'name email');
 
         return res.status(201).json(
             new ApiResponse('success', 'Appointment created successfully', populatedAppointment)
@@ -134,7 +133,6 @@ export const getAppointmentsForCurrentUser = errorHandler(async (req, res) => {
 
 export const calculateComputedStatus = (appointment) => {
   const now = new Date();
-
   const isOneDay = !appointment.endingdate || appointment.endingdate === appointment.startingdate;
 
   const startTime = appointment.startingtime || '00:00';
@@ -145,11 +143,11 @@ export const calculateComputedStatus = (appointment) => {
     ? new Date(`${appointment.startingdate}T${endTime}`)
     : new Date(`${appointment.endingdate}T${endTime}`);
 
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || appointment.status === 'pending' || appointment.status === 'rejected') return appointment.status;
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || appointment.status === 'pending' || appointment.status === 'rejected' || appointment.status === 'completed') return appointment.status;
 
   if (now < start) return 'inactive';
   if (now >= start && now <= end) return 'active';
-  if (now > end && appointment.status !== 'completed' && appointment.status !== 'rejected') return 'expired';
+  if (now > end ) return 'expired';
 
   return appointment.status;
 }

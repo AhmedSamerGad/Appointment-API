@@ -63,8 +63,17 @@ export const getAllAppointments = errorHandler(async (req, res) => {
     const appointments = await Appointment.find(query).skip(skip).limit(limit);
 
     for (const appointment of appointments) {
-        appointment.status = calculateComputedStatus(appointment);
-        await appointment.save();
+       const computeStatus = calculateComputedStatus(appointment);
+
+        if(appointment.status !==computeStatus){
+        appointment.status = computeStatus;
+         
+         try{
+        await appointment.save();}
+        catch(error){
+        console.error(`Error saving appointment ${appointment._id}:`, err.message);
+
+        }}
     }
     res.status(200).json({
         status: "success",

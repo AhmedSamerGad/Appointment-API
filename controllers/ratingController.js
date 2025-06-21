@@ -1,5 +1,6 @@
 import Rating from '../models/ratingModel.js';
 import errorHandler from '../middlewares/errorHandler.js';
+import ApiResponse from '../utils/apiResponse.js';
 import Appointment from '../models/appointmentModel.js';
 import { calculateComputedStatus } from './appointmentController.js';
 
@@ -33,6 +34,8 @@ export const deleteRating = errorHandler(async (req, res) => {
     }else{
         res.status(404).json({message: 'Rating not found'} );
     } } );
+
+
     export const startRating = errorHandler(async (req, res) => {
     // Use computedStatus instead of status field
     const appointment = await Appointment.findById(req.params.id);
@@ -78,7 +81,7 @@ export const deleteRating = errorHandler(async (req, res) => {
     } else {
         // For single-day appointments, check if already rated
         const hasRated = appointment.rating.some(r =>
-            r.ratedBy.toString() === req.user.id &&
+            r.ratedBy === req.user.id &&
             r.hasRated
         );
 
@@ -90,30 +93,53 @@ export const deleteRating = errorHandler(async (req, res) => {
     }
 
     // Create new rating
-    const newRating = {
-        users: appointment.acceptedBy.map(user => ({
-            ratedUser: user,
-            cumulativeRatingPoints: user.reviews.reduce((acc, review) => acc + (review.points || 0), 0),
-            comment: user.comment || '',
-            reviews: req.body.reviews.map(review => ({
-                title: review.title,
-                points: review.points || 0
-            }))
-        })),
-        hasRated: true,
-        ratedAt: new Date()
+   const ratingUsers = req.body.rating?.[0]?.users || [];
+
+const newRating = {
+  users: appointment.acceptedBy.map(userId => {
+    const ratedUserData = ratingUsers.find(
+      u => u.ratedUser?.toString() === userId.toString()
+    );
+
+    if (!ratedUserData) {
+      return {
+        ratedUser: [userId], // حسب النموذج في الرد
+        comment: '',
+        reviews: [],
+        cumulativeRatingPoints: 0
+      };
+    }
+
+    const reviews = ratedUserData.reviews.map(review => ({
+      title: review.title,
+      points: review.points || 0
+    }));
+
+    const totalPoints = reviews.reduce((acc, review) => acc + review.points, 0);
+
+    return {
+      ratedUser: [userId], // لاحظ القوسين المربعة []
+      comment: ratedUserData.comment || '',
+      reviews,
+      cumulativeRatingPoints: totalPoints
     };
+  }),
+  hasRated: true,
+  ratedAt: new Date()
+};
+
+
 
     // Add new rating to array
-    appointment.rating.push(newRating);
-    appointment.status = 'completed';
-    await appointment.save();
+    // appointment.rating.push(newRating);
+    // appointment.status = 'completed';
+    // await appointment.save();
 
     // Return populated appointment
-    const updatedAppointment = await Appointment.findById(appointment._id)
-        .populate('user', 'name email')
-        .populate('rating.ratedUser', 'name email')
-        .populate('rating.ratedBy', 'name email');
+    const updatedAppointment = await Appointment.findByIdAndUpdate(appointment._id , {rating : newRating ,status: 'completed'}, { new: true })
+        // .populate('user', 'name email')
+        // .populate('rating.users.ratedUser', 'name email')
+        // .populate('rating.ratedBy', 'name email');
 
     return res.status(200).json(
         new ApiResponse(
