@@ -2,16 +2,22 @@ import Appointment from "../models/appointmentModel.js";
 import errorHandler from "../middlewares/errorHandler.js";
 import Group from "../models/groupModel.js";
 import ApiResponse from "../utils/apiResponse.js";
-
 export const createAppointment = errorHandler(async (req, res, next) => {
   try {
     let attendance = [];
-    let group = null;
+    let groupIds = [];
     const ratingType = req.body.rating;
 
     // Handle group-based appointments
-    if (req.body.group) {
-      if (
+    if (req.body.group && Array.isArray(req.body.group)) {
+      for (const groupId of req.body.group) {
+        const group = await Group.findById(groupId);
+        if (!group) {
+          return res
+            .status(404)
+            .json(new ApiResponse("fail", "Group not found"));
+        }
+         if (
         req.user.role !== "admin" &&
         group.admin.toString() !== req.user.id &&
         req.user.role !== "super-admin"
@@ -25,20 +31,12 @@ export const createAppointment = errorHandler(async (req, res, next) => {
             )
           );
       }
-      group.map(async (groupId) => {
-        group = await Group.findById(groupId);
-        if (!group) {
-          return res
-            .status(404)
-            .json(new ApiResponse("fail", "Group not found"));
-        }
-
-        // Check permissions
-
-        attendance = group.members.map((member) => member._id);
-      });
+        // Collect all group members
+        attendance.push(...group.members.map((member) => member._id.toString()));
+        groupIds.push(group._id.toString());
+      }
     } else {
-      attendance = req.body.attendance || [];
+      attendance = req.body.attendance ? req.body.attendance.map(String) : [];
     }
 
     // Always include creator in attendance if not already present
@@ -46,9 +44,12 @@ export const createAppointment = errorHandler(async (req, res, next) => {
       attendance.push(req.user.id);
     }
 
+    // Remove duplicates
+    attendance = [...new Set(attendance)];
+
     // Prepare initial ratings for all attendees
     const initialRatings = {
-      ratedBy: req.user.id || req.body.ratedBy,
+      ratedBy: req.user.id,
       hasRated: false,
       ratedAt: Date.now(),
       users: attendance.map((userId) => ({
@@ -67,15 +68,17 @@ export const createAppointment = errorHandler(async (req, res, next) => {
       user: req.user.id,
       ...req.body,
       attendance,
-      group: group ? group._id : undefined,
+      group: groupIds,
       status: "pending",
       rating: initialRatings,
     });
 
-    // Add appointment to group if needed
-    if (group) {
-      group.Appointments.push(appointment._id);
-      await group.save();
+    // Optionally, add appointment to each group
+    if (groupIds.length > 0) {
+      await Group.updateMany(
+        { _id: { $in: groupIds } },
+        { $push: { Appointments: appointment._id } }
+      );
     }
 
     // Return populated appointment
