@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon express/index.js",
+    "start": "node express/index.js",
     "dev": "set NODE_ENV=development&& nodemon express/index.js",
     "prod": "set NODE_ENV=production&& nodemon express/index.js"
   },
