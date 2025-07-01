@@ -2,16 +2,32 @@ import User from '../models/userModel.js';
 import errorHandler from '../middlewares/errorHandler.js';
 import bcrypt from 'bcryptjs'; 
 import ApiResponse from '../utils/apiResponse.js';
+import { uploadImageToCloudinary } from '../config/cloudinary_config.js';   
 import { genereateToken } from '../utils/generateToken.js';
+import fs from 'fs/promises'
 export const registerUser = errorHandler(async (req, res,next) => {
-    const user = await User.create(req.body);
+    
+    const user = await User.create({...req.body});
     if(!user){
         const error= res.status(400).json(new ApiResponse('fail','User not created'));
         return next(error);
     }
+  
+   
+  
+    
     const hashPassword = await bcrypt.hash(user.password, 10);
     user.password = hashPassword;
-    await user.save();
+    if(req.file){
+       try {
+          const uploaded = await uploadImageToCloudinary(req.file.path, 'users');
+       user.profilePic = uploaded.secure_url;
+ 
+       await fs.unlink(req.file.path);
+       } catch (error) {
+          console.error('Error uploading image:', error);
+       }
+    }
     const token = genereateToken({id: user._id, email: user.email,role: user.role}) ;
     user.token = token;
     await user.save();

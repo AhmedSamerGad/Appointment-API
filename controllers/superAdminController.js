@@ -1,6 +1,7 @@
 import errorHandler from "../middlewares/errorHandler.js";
 import User from "../models/userModel.js";
 import { calculateComputedStatus } from "./appointmentController.js";
+import ApiResponse from "../utils/apiResponse.js";
 import Appointment from "../models/appointmentModel.js";
 
 export const getAllUsers = errorHandler(async (req, res) => {
@@ -62,8 +63,17 @@ export const getAllAppointments = errorHandler(async (req, res) => {
     const appointments = await Appointment.find(query).skip(skip).limit(limit);
 
     for (const appointment of appointments) {
-        appointment.status = calculateComputedStatus(appointment);
-        await appointment.save();
+       const computeStatus = calculateComputedStatus(appointment);
+
+        if(appointment.status !==computeStatus){
+        appointment.status = computeStatus;
+         
+         try{
+        await appointment.save();}
+        catch(error){
+        console.error(`Error saving appointment ${appointment._id}:`, err.message);
+
+        }}
     }
     res.status(200).json({
         status: "success",
@@ -119,3 +129,16 @@ try {
 }
 });
 export const getAllGroups = errorHandler(async (req, res) => {});
+
+export const AppointmentReviewDetails = errorHandler(async (req, res) => {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.find({appointmentId , status : 'completed'})
+    .populate('user', 'name profilePicture').populate('rating', 'points comment cumulativeRatingPoints');
+
+   if (!appointment || appointment.length ==0) {
+       return res.status(404).json({status:'fail', message:'Appointment not found or not completed'});
+   }
+
+   res.status(200).json({status : 'success', data : appointment});
+});

@@ -67,6 +67,19 @@
     }
     res.status(200).json(new ApiResponse('success', group.admin));
     });
+export const getAdminForGroups = errorHandler(async (req, res, next) => {
+    const userId = req.params.id;
+    const groups = await Group.find({ admin: userId })
+        .populate('members', 'name profilePic role');
+    if (!groups || groups.length === 0) {
+        return res.status(404).json(
+            new ApiResponse('fail', 'No groups found for this admin')
+        );
+    }
+    res.status(200).json(
+        new ApiResponse('success', 'Groups retrieved successfully', groups)
+    );
+});
     // i want to check the admin is in the group 
     export const updateAdminGroup = errorHandler(async (req, res, next) => {
         try {

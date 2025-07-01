@@ -1,5 +1,8 @@
 import Rating from '../models/ratingModel.js';
 import errorHandler from '../middlewares/errorHandler.js';
+import ApiResponse from '../utils/apiResponse.js';
+import Appointment from '../models/appointmentModel.js';
+import { calculateComputedStatus } from './appointmentController.js';
 
 export const createRating = errorHandler(async (req, res) => {
     const rating = await Rating.create(req.body);
@@ -31,32 +34,25 @@ export const deleteRating = errorHandler(async (req, res) => {
     }else{
         res.status(404).json({message: 'Rating not found'} );
     } } );
+
+
     export const startRating = errorHandler(async (req, res) => {
     // Use computedStatus instead of status field
-    const appointment = await Appointment.findById(req.params.id)
-        .populate('user', 'name email')
-        .populate('attendance', 'name email')
-        .populate('rating.ratedUser', 'name email')
-        .populate('rating.ratedBy', 'name email');
+    const appointment = await Appointment.findById(req.params.id);
+       
 
-    if (!appointment) {
+    if (!appointment || calculateComputedStatus(appointment) !== 'active') {
         return res.status(404).json(
-            new ApiResponse('fail', 'Appointment not found')
+            new ApiResponse('fail', 'Appointment not found or not active', null)
         );
     }
 
-    // Use computedStatus to check if appointment is active
-    if (appointment.computedStatus !== 'active') {
-        return res.status(400).json(
-            new ApiResponse('fail', 'Appointment is not active')
-        );
-    }
-
+    
     // Permission check
     if (
         req.user.role !== 'admin' &&
         req.user.role !== 'super-admin' &&
-        (!appointment.rating.length ||
+        (!appointment.rating.users.length ||
             !appointment.rating.some(r => r.ratedUser.toString() === req.user.id))
     ) {
         return res.status(403).json(
@@ -85,7 +81,7 @@ export const deleteRating = errorHandler(async (req, res) => {
     } else {
         // For single-day appointments, check if already rated
         const hasRated = appointment.rating.some(r =>
-            r.ratedBy.toString() === req.user.id &&
+            r.ratedBy === req.user.id &&
             r.hasRated
         );
 
@@ -97,27 +93,53 @@ export const deleteRating = errorHandler(async (req, res) => {
     }
 
     // Create new rating
-    const newRating = {
-        ratedUser: req.body.id,
-        ratedBy: req.user.id,
-        rating: req.body.rating,
-        comment: req.body.comment || '',
-        attendance: appointment.acceptedBy,
-        points: req.body.points,
-        hasRated: true,
-        cumulativeRatingPoints: req.body.points.map(point => point.points).reduce((acc, curr) => acc + curr, 0),
-        ratedAt: new Date()
+   const ratingUsers = req.body.rating?.[0]?.users || [];
+
+const newRating = {
+  users: appointment.acceptedBy.map(userId => {
+    const ratedUserData = ratingUsers.find(
+      u => u.ratedUser?.toString() === userId.toString()
+    );
+
+    if (!ratedUserData) {
+      return {
+        ratedUser: [userId], // حسب النموذج في الرد
+        comment: '',
+        reviews: [],
+        cumulativeRatingPoints: 0
+      };
+    }
+
+    const reviews = ratedUserData.reviews.map(review => ({
+      title: review.title,
+      points: review.points || 0
+    }));
+
+    const totalPoints = reviews.reduce((acc, review) => acc + review.points, 0);
+
+    return {
+      ratedUser: [userId], // لاحظ القوسين المربعة []
+      comment: ratedUserData.comment || '',
+      reviews,
+      cumulativeRatingPoints: totalPoints
     };
+  }),
+  hasRated: true,
+  ratedAt: new Date()
+};
+
+
 
     // Add new rating to array
-    appointment.rating.push(newRating);
-    await appointment.save();
+    // appointment.rating.push(newRating);
+    // appointment.status = 'completed';
+    // await appointment.save();
 
     // Return populated appointment
-    const updatedAppointment = await Appointment.findById(appointment._id)
-        .populate('user', 'name email')
-        .populate('rating.ratedUser', 'name email')
-        .populate('rating.ratedBy', 'name email');
+    const updatedAppointment = await Appointment.findByIdAndUpdate(appointment._id , {rating : newRating ,status: 'completed'}, { new: true })
+        // .populate('user', 'name email')
+        // .populate('rating.users.ratedUser', 'name email')
+        // .populate('rating.ratedBy', 'name email');
 
     return res.status(200).json(
         new ApiResponse(

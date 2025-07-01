@@ -25,8 +25,8 @@ export const createAppointmentValidator = [
         //     // return true;
         // })
         ,
-    
-    check('endingdate').optional()
+
+    check('endingdate').optional({ nullable: true })
         .isISO8601()
         .withMessage('ending date must be a valid date format (YYYY-MM-DD)')
         .custom((value, { req }) => {
@@ -58,14 +58,14 @@ export const getAppointmentByDate=[
 ]
 
 export const startAppointmentValidator=[
-    check('id').isMongoId().withMessage('id is invalid').custom(async(value , {req}) =>{
-        const appointment = await Appointment.findById(req.params.id);
-        if(!appointment){
-            return Promise.reject('appointment not found');
-        }
-        if(!appointment.acceptedBy.includes(value)){
-            return Promise.reject('this user is not accept the appointment');
-        }
-    }),
+    // check('id').isMongoId().withMessage('id is invalid').custom(async(value , {req}) =>{
+    //     const appointment = await Appointment.findById(req.params.id);
+    //     if(!appointment){
+    //         return Promise.reject('appointment not found');
+    //     }
+    //     if(!appointment.acceptedBy.includes(value)){
+    //         return Promise.reject('this user is not accept the appointment');
+    //     }
+    // }),
     validator
 ]

@@ -16,10 +16,10 @@ app.use(express.json());
 
 app.use(cors());
 
-app.use('/api/appointment',appointmentRoute);
-app.use('/api/user',userRoute);
-app.use('/api/group',groupRoute);
-app.use('/api/admin',adminRoute);
+app.use('/api/v1/appointment',appointmentRoute);
+app.use('/api/v1/user',userRoute);
+app.use('/api/v1/group',groupRoute);
+app.use('/api/v1/admin',adminRoute);
 
 
 app.use(globalError);
