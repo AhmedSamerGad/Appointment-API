@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 const ratingUserSchema = new mongoose.Schema({
-  ratedUser: [{
+  ratedUser: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
-  }],
+  },
   comment: {
       type: String,
       maxlength: 500
@@ -24,7 +24,7 @@ const ratingUserSchema = new mongoose.Schema({
         type: Number,
         required: true,
         min: 0,
-        max: 5,
+        max: 100,
         default: 0
       }
     }

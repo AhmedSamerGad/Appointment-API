@@ -25,8 +25,8 @@ export const createAppointmentValidator = [
         //     // return true;
         // })
         ,
-    
-    check('endingdate').optional()
+
+    check('endingdate').optional({ nullable: true })
         .isISO8601()
         .withMessage('ending date must be a valid date format (YYYY-MM-DD)')
         .custom((value, { req }) => {

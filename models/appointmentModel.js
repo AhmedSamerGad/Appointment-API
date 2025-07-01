@@ -11,10 +11,10 @@ const AppointmentSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    group: {
+    group:[ {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Group',
-    },
+    }],
     startingdate: {
         type: String,
         required: true,
@@ -28,6 +28,11 @@ const AppointmentSchema = new mongoose.Schema({
     },
     endingtime: {
         type: String,
+    },
+    description: {
+        type: String, },
+    location: {
+        type: String, 
     },
     //for the admin
     status: {
