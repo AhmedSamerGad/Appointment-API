@@ -1,79 +1,45 @@
 import Appointment from "../models/appointmentModel.js";
 import errorHandler from "../middlewares/errorHandler.js";
 import Group from "../models/groupModel.js";
+import Users from "../models/userModel.js";
 import ApiResponse from "../utils/apiResponse.js";
+import { processGroupsAndAttendance ,calculateComputedStatus} from "../utils/helperFunctions.js";
 export const createAppointment = errorHandler(async (req, res, next) => {
   try {
-    let attendance = [];
-    let groupIds = [];
-    const ratingType = req.body.rating;
+    const { attendance, groupIds } = await processGroupsAndAttendance(
+      req.user,
+      req.body.group,
+      req.body.attendance
+    );
 
-    // Handle group-based appointments
-    if (req.body.group && Array.isArray(req.body.group)) {
-      for (const groupId of req.body.group) {
-        const group = await Group.findById(groupId);
-        if (!group) {
-          return res
-            .status(404)
-            .json(new ApiResponse("fail", "Group not found"));
-        }
-         if (
-        req.user.role !== "admin" &&
-        group.admin.toString() !== req.user.id &&
-        req.user.role !== "super-admin"
-      ) {
-        return res
-          .status(403)
-          .json(
-            new ApiResponse(
-              "fail",
-              "Only group admins or super admins can create group appointments"
-            )
-          );
-      }
-        // Collect all group members
-        attendance.push(...group.members.map((member) => member._id.toString()));
-        groupIds.push(group._id.toString());
-      }
-    } else {
-      attendance = req.body.attendance ? req.body.attendance.map(String) : [];
+    let rating = [];
+    if (req.body.rating && Array.isArray(req.body.rating)) {
+      rating = [
+        {
+          ratedBy: req.user.id,
+          hasRated: false,
+          ratedAt: new Date(),
+          users: [
+            { 
+              ratedUser: req.user.id,  
+              comment: "",
+              cumulativeRatingPoints: 0,
+              reviews: req.body.rating,
+            },
+          ],
+        },
+      ];
     }
 
-    // Always include creator in attendance if not already present
-    if (!attendance.includes(req.user.id)) {
-      attendance.push(req.user.id);
-    }
-
-    // Remove duplicates
-    attendance = [...new Set(attendance)];
-
-    // Prepare initial ratings for all attendees
-    const initialRatings = {
-      ratedBy: req.user.id,
-      hasRated: false,
-      ratedAt: Date.now(),
-      users: attendance.map((userId) => ({
-        ratedUser: userId,
-        cumulativeRatingPoints: 0,
-        comment: req.body.comment || "",
-        reviews: ratingType.map((review) => ({
-          title: review.title,
-          points: review.points || 0,
-        })),
-      })),
-    };
-
-    // Create appointment with all fields set
     const appointment = await Appointment.create({
       user: req.user.id,
       ...req.body,
       attendance,
       group: groupIds,
       status: "pending",
-      rating: initialRatings,
+      rating,
     });
 
-    // Optionally, add appointment to each group
     if (groupIds.length > 0) {
       await Group.updateMany(
         { _id: { $in: groupIds } },
@@ -81,47 +47,83 @@ export const createAppointment = errorHandler(async (req, res, next) => {
       );
     }
 
-    // Return populated appointment
-    const populatedAppointment = await Appointment.findById(
-      appointment._id
-    ).populate("user", "name email");
+    const populatedAppointment = await Appointment.findById(appointment._id);
 
-    return res
-      .status(201)
-      .json(
-        new ApiResponse(
-          "success",
-          "Appointment created successfully",
-          populatedAppointment
-        )
-      );
+    return res.status(201).json(
+      new ApiResponse("success", "Appointment created successfully", populatedAppointment)
+    );
   } catch (error) {
     console.error("Create appointment error:", error);
-    return res
-      .status(500)
-      .json(
-        new ApiResponse("fail", "Error creating appointment", error.message)
-      );
+    return res.status(500).json(
+      new ApiResponse("fail", "Error creating appointment", error.message)
+    );
   }
 });
+
 // for use in app only
-
 export const updateAppointment = errorHandler(async (req, res) => {
-  const appointment = await Appointment.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  );
-  if (appointment) {
-    res.json(appointment);
-  } else {
-    res.status(404).json({ message: "Appointment not found" });
+  const appointment = await Appointment.findById(req.params.id);
+
+  if (!appointment) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Appointment not found",
+    });
   }
+
+  // Update acceptedBy users without duplication
+  if (req.body.acceptedBy && Array.isArray(req.body.acceptedBy)) {
+    const currentAcceptedIds = appointment.acceptedBy.map(id => id.toString());
+    const incomingIds = req.body.acceptedBy.map(id => id.toString());
+
+    const updatedAcceptedBy = [...new Set([...currentAcceptedIds, ...incomingIds])];
+    appointment.acceptedBy = updatedAcceptedBy;
+
+    // Update rating.users based on new acceptedBy list
+    if (appointment.rating && appointment.rating.length > 0) {
+      const rating = appointment.rating[0];
+
+      const templateReviews = rating.users?.[0]?.reviews || [];
+      rating.users = updatedAcceptedBy.map(userId => ({
+        ratedUser: userId,
+        cumulativeRatingPoints: 0,
+        comment: "",
+        reviews: templateReviews,
+      }));
+      const user = req.body.acceptedBy.map(async(userId) => {
+        const currentUser = await Users.findById(userId);
+        currentUser.appointments.push(appointment._id);
+        await currentUser.save();
+      }); 
+
+      appointment.markModified("rating");
+    }
+  }
+
+  // Update other allowed fields like status
+  if (req.body.status) {
+    appointment.status = req.body.status;
+  }
+
+  await appointment.save();
+const timestamps = Date.now().toLocaleString('en-US', {
+  timeZone: 'Africa/Cairo',
+}); 
+  return res.status(200).json({
+    status: "success",
+    data: appointment,
+    time : timestamps,
+  });
 });
 
-export const deleteAppointment = errorHandler(async (req, res) => {
+
+export const deleteAppointment = errorHandler(async (req, res) => { 
   const appointment = await Appointment.findByIdAndDelete(req.params.id);
   if (appointment) {
+    await Users.updateMany(
+      { appointments: appointment._id },
+      { $pull: { appointments: appointment._id } }
+    );
     res.json({ message: "Appointment deleted successfully" });
   } else {
     res.status(404).json({ message: "Appointment not found" });
@@ -129,8 +131,13 @@ export const deleteAppointment = errorHandler(async (req, res) => {
 });
 
 export const getAppointmentsForCurrentUser = errorHandler(async (req, res) => {
-  // Use req.user.id for the current authenticated user
-  const appointments = await Appointment.find({ user: req.params.id });
+  // Find appointments where the user is either the creator or in attendance
+  const appointments = await Appointment.find({
+    $or: [  
+      { user: req.params.id },
+      { attendance: req.params.id }
+    ]
+  }).populate('acceptedBy', 'name profilePic');
 
   if (!appointments || appointments.length === 0) {
     return res.status(404).json({
@@ -140,39 +147,13 @@ export const getAppointmentsForCurrentUser = errorHandler(async (req, res) => {
     });
   }
 
+  appointments.forEach(app => {
+    app.status = calculateComputedStatus(app);
+  });
+
   return res.status(200).json({
     status: "success",
     result: appointments.length,
     data: appointments,
   });
 });
-
-export const calculateComputedStatus = (appointment) => {
-  const now = new Date();
-  const isOneDay =
-    !appointment.endingdate ||
-    appointment.endingdate === appointment.startingdate;
-
-  const startTime = appointment.startingtime || "00:00";
-  const endTime = appointment.endingtime || "23:59";
-
-  const start = new Date(`${appointment.startingdate}T${startTime}`);
-  const end = isOneDay
-    ? new Date(`${appointment.startingdate}T${endTime}`)
-    : new Date(`${appointment.endingdate}T${endTime}`);
-
-  if (
-    isNaN(start.getTime()) ||
-    isNaN(end.getTime()) ||
-    appointment.status === "pending" ||
-    appointment.status === "rejected" ||
-    appointment.status === "completed"
-  )
-    return appointment.status;
-
-  if (now < start) return "inactive";
-  if (now >= start && now <= end) return "active";
-  if (now > end) return "expired";
-
-  return appointment.status;
-};

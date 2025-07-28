@@ -2,7 +2,7 @@ import Rating from '../models/ratingModel.js';
 import errorHandler from '../middlewares/errorHandler.js';
 import ApiResponse from '../utils/apiResponse.js';
 import Appointment from '../models/appointmentModel.js';
-import { calculateComputedStatus } from './appointmentController.js';
+import { calculateComputedStatus } from '../utils/helperFunctions.js';
 
 export const createRating = errorHandler(async (req, res) => {
     const rating = await Rating.create(req.body);

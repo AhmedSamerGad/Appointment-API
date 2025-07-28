@@ -1,6 +1,6 @@
 import errorHandler from "../middlewares/errorHandler.js";
 import User from "../models/userModel.js";
-import { calculateComputedStatus } from "./appointmentController.js";
+import { calculateComputedStatus } from "../utils/helperFunctions.js";
 import ApiResponse from "../utils/apiResponse.js";
 import Appointment from "../models/appointmentModel.js";
 
@@ -67,7 +67,11 @@ export const getAllAppointments = errorHandler(async (req, res) => {
 
         if(appointment.status !==computeStatus){
         appointment.status = computeStatus;
-         
+        const start = new Date(appointment.startingdate);
+        const end = appointment.endingdate ? new Date(appointment.endingdate) : null;
+        const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+
+
          try{
         await appointment.save();}
         catch(error){
@@ -75,6 +79,21 @@ export const getAllAppointments = errorHandler(async (req, res) => {
 
         }}
     }
+    // Collect timestamps for each appointment
+    const timestamps = appointments.map(appointment => {
+        const start = new Date(appointment.startingdate);
+        const end = appointment.endingdate ? new Date(appointment.endingdate) : null;
+        const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+        return {
+            appointmentId: appointment._id,
+            start: start.toLocaleString("en-US", { timeZone: "Africa/Cairo" }),
+            end: end ? end.toLocaleString("en-US", { timeZone: "Africa/Cairo" }) : null,
+            now: now.toLocaleString("en-US", { timeZone: "Africa/Cairo" }),
+            normalizedStart: start.toISOString(),
+            normalizedEnd: end ? end.toISOString() : null,
+        };
+    });
+
     res.status(200).json({
         status: "success",
         page: page,
@@ -82,6 +101,7 @@ export const getAllAppointments = errorHandler(async (req, res) => {
         data: {
             appointments,
         },
+        timestamps,
     });
 });
 
