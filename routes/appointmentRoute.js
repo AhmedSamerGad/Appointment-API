@@ -7,6 +7,6 @@ import { startRating } from "../controllers/ratingController.js";
 
 const appointmentRoute = express.Router();
 appointmentRoute.post('/',verifyToken,allowedTo('admin','super-admin'),createAppointmentValidator,createAppointment);
-appointmentRoute.route('/:id').put(verifyToken,allowedTo('super-admin','admin'),updateAppointment).delete(verifyToken,allowedTo('super-admin','admin'),deleteAppointment).get(verifyToken,allowedTo('user','admin','super-admin'),getAppointmentsForCurrentUser);
+appointmentRoute.route('/:id').patch(verifyToken,allowedTo('super-admin','admin'),updateAppointment).delete(verifyToken,allowedTo('super-admin','admin'),deleteAppointment).get(verifyToken,allowedTo('user','admin','super-admin'),getAppointmentsForCurrentUser);
 appointmentRoute.patch('/rating/:id',verifyToken,allowedTo('super-admin','admin'),startAppointmentValidator,startRating)
 export default appointmentRoute;
