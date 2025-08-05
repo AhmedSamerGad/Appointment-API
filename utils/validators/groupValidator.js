@@ -11,7 +11,7 @@ export const createGroupValidator = [
         .isLength({ min: 5 })
         .withMessage('name should be at least 5 characters long'),
         check('admin').isMongoId().withMessage('id is invalid ').custom(async(id)=>{
-            const user = await User.findOne(id);
+            const user = await User.findById(id);
             if(!user){
                 return Promise.reject('user not found');
             }
@@ -19,7 +19,7 @@ export const createGroupValidator = [
         }),
         check('members').isArray().withMessage('members should be an array').custom(async(members)=>{
             for (const member of members) {
-                const user = await User.findOne(member); 
+                const user = await User.findById(member); 
                 if(!user){
                     return Promise.reject(`user not ${member} found ` );
                 }
@@ -31,16 +31,9 @@ export const createGroupValidator = [
 ];
 
 export const updatedGroupValidator = [
-       check('admin').isMongoId().withMessage('id is invalid ').custom(async(id)=>{
-        const user = await User.findOne(id);
-        if(!user){
-            return Promise.reject('user not found');
-        }
-        return true;
-    }),
-    check('members').isArray().withMessage('members should be an array').custom(async(members)=>{
+    check('members').optional({ nullable: true }).isArray().withMessage('members should be an array').custom(async(members)=>{
         for (const member of members) {
-            const user = await User.findOne(member); 
+            const user = await User.findById(member); 
             if(!user){
                 return Promise.reject(`user not ${member} found ` );
             }
