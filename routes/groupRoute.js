@@ -36,17 +36,18 @@ groupRoute
   .delete(allowedTo("super-admin"), groupCRUD.deleteGroup);
 // operations related to group admin
 groupRoute
-  .route("/:id/admin")
+  .route("/:userId/admin")
   .patch(
     allowedTo("super-admin"),
     updateAdminGroupValidator,
     groupAdmin.updateAdminGroup
   )
   .get(groupAdmin.getGroupAdmin)
-  .get(allowedTo("super-admin"), groupAdmin.getAdminForGroups);
+  ;
+  groupRoute.get("/:userId/admin-for", groupAdmin.getAdminForGroups)  ; 
 // operations related to group users
 groupRoute
-  .route("/:id/users")
+  .route("/:groupId/users")
   .get(groupUsers.getGroupUsers)
   .post(
     allowedTo("admin", "super-admin"),
@@ -57,7 +58,7 @@ groupRoute
     allowedTo("admin", "super-admin"),
     removeGroupUserValidator,
     groupUsers.deleteGroupUser
-  );
+  );  
 // post for the group id , get for the group id ,delete for the group id
 // operations related to group posts ( i want to replace this with appointment feature)
 groupRoute
