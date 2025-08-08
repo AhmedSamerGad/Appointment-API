@@ -2,6 +2,7 @@ import  errorHandler from "../../middlewares/errorHandler.js";
 import Group from "../../models/groupModel.js";
 import ApiResponse from "../../utils/apiResponse.js";
 import Appointment from "../../models/appointmentModel.js";
+import User from "../../models/userModel.js";
 
 export const getGroupPosts = errorHandler(async (req, res, next) => {
   const group = await Group.findById(req.params.id)
@@ -47,7 +48,7 @@ export const deleteGroupPost = errorHandler(async (req, res, next) => {
 });
 
 export const acceptAppointment = errorHandler(async (req, res) => {
-  const { appointmentId } = req.params;
+  const  appointmentId  = req.params.appointmentId;
   const userId = req.user.id;
 
   try {
@@ -55,15 +56,18 @@ export const acceptAppointment = errorHandler(async (req, res) => {
     if (!appointment) {
       return res
         .status(404)
-        .json(new ApiResponse("fail", "Appointment not found"));
+        .json({ status: "fail", message: "Appointment not found" });
     }
 
     // Check if user already accepted
-    if (appointment.acceptedBy.includes(userId)) {
+    if (appointment.acceptedBy.includes(userId) || !appointment.attendance.includes(userId)) {
       return res
         .status(400)
         .json(
-          new ApiResponse("fail", "You have already accepted this appointment")
+          {
+            status: "fail",
+            message: "You have already accepted this appointment or you are not form attending"
+          }
         );
     }
 
@@ -85,19 +89,19 @@ export const acceptAppointment = errorHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(
-        new ApiResponse(
-          "success",
-          "Appointment accepted successfully",
-          updatedAppointment
-        )
-      );
+      .json({
+        status: "success",
+        message: "Appointment accepted successfully",
+        data: updatedAppointment
+      });
   } catch (error) {
     console.error("Accept appointment error:", error);
     return res
       .status(400)
-      .json(
-        new ApiResponse("fail", "Error accepting appointment", error.message)
-      );
+      .json({
+        status: "fail",
+        message: "Error accepting appointment",
+        error: error.message
+      });
   }
 });

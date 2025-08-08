@@ -4,7 +4,7 @@ import errorHandler from "../../middlewares/errorHandler.js";
 import ApiResponse from "../../utils/apiResponse.js";
 
 export const getGroupAdmin = errorHandler(async (req, res) => {
-  const group = await Group.findById(req.params.id).populate("admin", "name email role");
+  const group = await Group.findById(req.params.id).populate("admin", "name email role").sort({ admin: -1 }); 
   if (!group) {
     return res
       .status(404)
@@ -14,20 +14,19 @@ export const getGroupAdmin = errorHandler(async (req, res) => {
   res.status(200).json(new ApiResponse("success", group.admin ? "Admin retrieved successfully" : "No admin found for this group", group.admin));
 });
 export const getAdminForGroups = errorHandler(async (req, res, next) => {
-  const userId = req.params.id;
+  const userId = req.params.userId;
   // Find all groups where the user is the admin
-  const groups = await Group.find({ admin: userId }).populate(
-    "members",
-    "name profilePic role"
-  );
+  const groups = await Group.find({ admin: userId }).populate("admin", "name email role profilePic").populate("members", "name profilePic");
   if (!groups || groups.length === 0) {
-    return res
-      .status(404)
-      .json(new ApiResponse("fail", "User is not admin for any group"));
+    return res.status(200).json(new ApiResponse("fail", "User is not admin for any group", null));
   }
-  res
-    .status(200)
-    .json(new ApiResponse("success", "Groups where user is admin retrieved successfully", groups));
+  res.status(200).json(
+    new ApiResponse(
+      "success",  
+      "User is admin for one or more groups",
+      { isAdmin: true, groups }
+    )
+  );
 });
 // i want to check the admin is in the group
 export const updateAdminGroup = errorHandler(async (req, res, next) => {
@@ -40,7 +39,7 @@ export const updateAdminGroup = errorHandler(async (req, res, next) => {
     }
 
     // Step 2: Find group and check if exists
-    const group = await Group.findById(req.params.id)
+    const group = await Group.findById(req.params.userId)
       .populate("admin", "name email role")
       .populate("members", "name profilePic");
 
@@ -58,11 +57,7 @@ export const updateAdminGroup = errorHandler(async (req, res, next) => {
       return res
         .status(403)
         .json(
-          new ApiResponse(
-            "fail",
-            "Only super-admin or current group admin can update admin",
-            null
-          )
+          {status: "fail", message: "Only super admins or group admins can update the admin"}
         );
     }
 
@@ -116,7 +111,6 @@ export const updateAdminGroup = errorHandler(async (req, res, next) => {
     if (!otherGroupsWithOldAdmin) {
       await User.findByIdAndUpdate(oldAdminId, {
         role: "user",
-        $unset: { group: "" },
       });
     }
 

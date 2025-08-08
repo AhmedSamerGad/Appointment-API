@@ -71,7 +71,7 @@ export const addGroupUserValidator = [
 export const removeGroupUserValidator = [
     check('members').isArray().withMessage('members should be an array').custom(async(members)=>{
         for (const member of members) {
-            const user = await User.findOne(member);
+            const user = await User.findById(member);
             if(!user){
                 return Promise.reject(`user not ${member} found ` );
             }

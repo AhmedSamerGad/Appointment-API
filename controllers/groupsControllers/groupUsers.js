@@ -1,21 +1,21 @@
 import Group from "../../models/groupModel.js";
 import ApiResponse from "../../utils/apiResponse.js";
+import User from "../../models/userModel.js";
 import errorHandler from "../../middlewares/errorHandler.js";
 
 
-export const getGroupUsers = errorHandler(async (req, res, next) => {
-  const group = await Group.findById(req.params.id);
+export const getGroupUsers = errorHandler(async (req, res) => {
+  const group = await Group.findById(req.params.groupId).populate("members", "name role profilePic");
   if (!group) {
-    const error = res
+     res
       .status(404)
       .json(new ApiResponse("fail", "Group not found"));
-    return next(error);
   }
-  res.status(200).json(new ApiResponse("success", "", group.members));
+  res.status(200).json(new ApiResponse("success",'' , group.members.length == 0  ? 'No members found' : group.members));
 });
-export const addGroupUser = errorHandler(async (req, res, next) => {
+export const addGroupUser = errorHandler(async (req, res) => {
   const { members } = req.body;
-  const groupId = req.params.id;
+  const groupId = req.params.groupId;
 
   // Validate members array
   if (!members || !Array.isArray(members) || members.length === 0) {
@@ -39,61 +39,48 @@ export const addGroupUser = errorHandler(async (req, res, next) => {
       return res
         .status(403)
         .json(
-          new ApiResponse(
-            "fail",
-            "Only group admins can add members or super admins"
-          )
+          new ApiResponse("fail", "Only group admins or super admins can add members")
         );
     }
     // Check for existing members
     const existingMembers = group.members.map((member) => member.toString());
-    const duplicateMembers = members.filter((member) =>
-      !existingMembers.includes(member)
-    );
-
-    if (duplicateMembers.length === 0) {
+    const membersToAdd = members
+      .map(m => m.toString())
+      .filter(ma => !existingMembers.includes(ma)); 
+    if (membersToAdd.length === 0) {
       return res
         .status(400)
-        .json(
-          new ApiResponse(
-            "fail",
-            "All provided users are already members of the group"
-          )
-        );
+        .json(new ApiResponse("fail", "No new members to add, all specified members are already in the group"));
     }
 
     // Add new members
-    group.members.push(...duplicateMembers);
-    await group.save();
+    group.members.push(...membersToAdd);
+    await group.save(); 
 
     await User.updateMany(
-      { _id: { $in: members } },
+      { _id: { $in: membersToAdd } },
       { $addToSet: { groups: groupId } }
     );
 
     // Populate member details in response
     const updatedGroup = await Group.findById(groupId)
-      .populate("members", "name email")
-      .populate("admin", "name email");
+      .populate("members", "name role profilePic")
+      .populate("admin", "name role profilePic");
 
     return res
       .status(200)
       .json(
-        new ApiResponse(
-          "success",
-          "Users added to group successfully",
-          updatedGroup
-        )
+        new ApiResponse("success", "Members added to group successfully", updatedGroup)
       );
   } catch (error) {
     return res
-      .status(500)
+      .status(400)
       .json(new ApiResponse("error", "Error adding members to group"));
   }
 });
-export const deleteGroupUser = errorHandler(async (req, res, next) => {
+export const deleteGroupUser = errorHandler(async (req, res) => {
   const { members } = req.body;
-  const groupId = req.params.id;
+  const groupId = req.params.groupId;
 
   // Validate members array
   if (!members || !Array.isArray(members) || members.length === 0) {
@@ -108,8 +95,8 @@ export const deleteGroupUser = errorHandler(async (req, res, next) => {
     return res.status(404).json(new ApiResponse("fail", "Group not found"));
   }
   if (
-    req.user.role !== "admin" ||
-    group.admin.toString() !== req.user.id ||
+    req.user.role !== "admin" &&
+    group.admin.toString() !== req.user.id &&
     req.user.role !== "super-admin"
   ) {
     return res
@@ -128,7 +115,7 @@ export const deleteGroupUser = errorHandler(async (req, res, next) => {
   if (updatedMembers.length === group.members.length) {
     return res
       .status(400)
-      .json(new ApiResponse("fail", "No specified members were removed"));
+      .json({status:'fail', message: 'No members removed, all specified members are not in the group'});
   }
 
   group.members = updatedMembers;
